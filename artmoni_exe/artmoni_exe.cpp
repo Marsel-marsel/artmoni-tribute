@@ -1,6 +1,8 @@
 #include "../common/artmoni.h"
 using namespace std;
 extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<rwMem>*rwmemVector);
+extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE pHandle, vector<rwMem>*rwmemVector, vector<PVOID>*result);
+extern 
 
 int _tmain(int argc, TCHAR* argv[]) {
 	if (argc != 2) {
@@ -24,8 +26,12 @@ int _tmain(int argc, TCHAR* argv[]) {
 	
 	vector<rwMem> rwmem;
 	if (!getRWregions(hProcess, &rwmem)) {
+		CloseHandle(hProcess);
 		return 1;
 	}
+
+	vector<PVOID> valuePointers;
+	scanRWmemForValue(475, hProcess, &rwmem, &valuePointers);
 	CloseHandle(hProcess);
 	return 0;
 }
