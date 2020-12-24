@@ -1,6 +1,5 @@
 #include "../common/artmoni.h"
 using namespace std;
-//vector<rwMem> rwmem;
 
 BOOL isPresent(PVOID address, vector<rwMem> rwmem) {
     for (int i = 0; i < rwmem.size(); i++) {
@@ -14,6 +13,31 @@ BOOL isPresent(PVOID address, vector<rwMem> rwmem) {
     return FALSE;
 }
 
+extern "C" __declspec(dllexport) BOOL filterRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
+    vector<PVOID>::iterator it = valuePointers->begin();
+    for (; it != valuePointers->end(); ) {
+        PVOID curAddr = (PVOID) * it;
+        int* buf = (int*) malloc(sizeof(int));
+        if (buf == NULL) {
+            wprintf(TEXT("Malloc failed %p (size: %zu bytes)\n"), curAddr, sizeof(int));
+            return FALSE;
+        }
+        SIZE_T readBytes = 0;
+        ReadProcessMemory(pHandle, curAddr, buf, sizeof(int), &readBytes);
+        if (readBytes != sizeof(int)) {
+            wprintf(TEXT("Can't read integer at address %p\n"), curAddr);
+            return FALSE;
+        }
+        if (*buf != newValue) {
+            it = valuePointers->erase(it);
+        }
+        else {
+            ++it;
+        }
+        free(buf);
+    }
+    return TRUE;
+}
 
 extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<rwMem>* rwmemVector) {
     PVOID pvAddress = NULL;
@@ -26,36 +50,18 @@ extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<
             rwMem m;
             m.base = mbi.BaseAddress;
             m.size = mbi.RegionSize;
-            rwmemVector->push_back(m);  // from xtcrackme - push_back makes a copy of element
+            rwmemVector->push_back(m);  // from xtcrackme - push_back makes a copy of element, so we don't care that m is local var
             //wprintf(TEXT("%p, size: %u kB\n"), pvAddress, mbi.RegionSize / 1024);
         }
         pvAddress = (PVOID)((PBYTE)pvAddress + mbi.RegionSize);
     }
-    wprintf(TEXT("Found %u memory RW regions\n"), rwmemVector->size());
-    //PVOID t1 = (PVOID)0x02B7F9CE3D34;
-    //isPresent(t1, *rwmemVector);
-    //PVOID t2 = (PVOID)0x02B7FB2F8BAC;
-    //isPresent(t2, *rwmemVector);
+    wprintf(TEXT("Found %zu memory RW regions\n"), rwmemVector->size());
     if (rwmemVector->size() != 0) {
         return TRUE;
     }
     else {
         return FALSE;
     }
-}
-
-void scanForIntValue(int value, PVOID memRegion, SIZE_T memRegionSize, vector<PVOID>* result) {
-    SIZE_T valueSize = sizeof(int);
-    PVOID ptr = memRegion;
-    PVOID endAddr = (PVOID)((PBYTE)memRegion + memRegionSize);
-    while (ptr < endAddr) {
-        if (*(int*)ptr == value) {
-            wprintf(TEXT("Address %p contains value %d\n"), ptr, value);
-            result->push_back(ptr);
-        }
-        ptr = (PVOID)((PBYTE)ptr + valueSize);
-    }
-    return;
 }
 
 extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE pHandle, vector<rwMem>*rwmemVector, vector<PVOID>* result ) {
@@ -66,13 +72,13 @@ extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE 
         SIZE_T size = (*rwmemVector)[i].size;
         PVOID buf = malloc(size);
         if (buf == NULL) {
-            wprintf(TEXT("Malloc failed %p (size: %zu bytes)"), pAddr, size);
+            wprintf(TEXT("Malloc failed %p (size: %zu bytes)\n"), pAddr, size);
             return FALSE;
         }
         SIZE_T readBytes = NULL;
         ReadProcessMemory(pHandle, pAddr, buf, size, &readBytes);
         if (readBytes != size) {
-            wprintf(TEXT("ReadProcessMemory error. Can't read memory block %p (size: %zu bytes)"), pAddr, size);
+            //wprintf(TEXT("ReadProcessMemory error. Can't read memory block %p (size: %zu bytes)"), pAddr, size);
             continue;
         }
         UINT offset = 0;
