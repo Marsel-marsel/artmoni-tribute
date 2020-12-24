@@ -4,6 +4,7 @@ using namespace std;
 extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<rwMem>*rwmemVector);
 extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE pHandle, vector<rwMem>*rwmemVector, vector<PVOID>*result);
 extern "C" __declspec(dllexport) BOOL filterRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
+extern "C" __declspec(dllexport) BOOL writeRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
 
 
 int _tmain(int argc, TCHAR* argv[]) {
@@ -46,14 +47,27 @@ int _tmain(int argc, TCHAR* argv[]) {
 	wprintf(TEXT("Found %zu pointers to the value %d\n"), valuePointers.size(), targetValue);
 
 	int newValue;
+	cin.width(21);
 	while(TRUE){
-		wprintf(TEXT("Insert new value: \n"));
-		cin >> newValue;
-		filterRWPointers(hProcess, newValue, &valuePointers);
-		wprintf(TEXT("Found %zu pointers to the value %d\n"), valuePointers.size(), newValue);
+		wprintf(TEXT("Insert new value (enter to escape): \n"));
+		char userInput[21] = { 0 }; //cin >> newValue;
+		cin >> userInput;
+		try {
+			newValue = std::stoi(userInput);
+			filterRWPointers(hProcess, newValue, &valuePointers);
+			wprintf(TEXT("Found %zu pointers to the value %d\n"), valuePointers.size(), newValue);
+		}
+		catch (std::exception) {
+			break;
+		}
 	}
-
-
+	wprintf(TEXT("Insert rewrite value : \n"));
+	cin >> newValue;
+	if (!writeRWPointers(hProcess, newValue, &valuePointers)) {
+		wprintf(TEXT("Can't rewrite memory\n"));
+		CloseHandle(hProcess);
+		return 1;
+	}
 	CloseHandle(hProcess);
 	return 0;
 }

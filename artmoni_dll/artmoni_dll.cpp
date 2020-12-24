@@ -12,6 +12,27 @@ BOOL isPresent(PVOID address, vector<rwMem> rwmem) {
     }
     return FALSE;
 }
+extern "C" __declspec(dllexport) BOOL writeRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
+    int* ptrNewValue = (int*)malloc(sizeof(int));
+    if (ptrNewValue == NULL) {
+        wprintf(TEXT("Malloc failed\n"));
+        return FALSE;
+    }
+
+    *ptrNewValue = newValue;
+    for (int i = 0; i < valuePointers->size(); i++) {
+        SIZE_T bytesWritten = 0;
+        PVOID targetAddress = (*valuePointers)[i];
+        WriteProcessMemory(pHandle, targetAddress, ptrNewValue, sizeof(int), &bytesWritten);
+        if (bytesWritten != sizeof(int)) {
+            wprintf(TEXT("Can't write integer at address %p\n"), targetAddress);
+            return FALSE;
+        }
+    }
+    free(ptrNewValue);
+    return TRUE;
+}
+
 
 extern "C" __declspec(dllexport) BOOL filterRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
     vector<PVOID>::iterator it = valuePointers->begin();
