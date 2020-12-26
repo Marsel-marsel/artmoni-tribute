@@ -10,8 +10,6 @@ It could make Tommy Vercetti rich right from the start of the game.
 The artmoney was pure magic for me, but now I better understand how computer works and I am able to reproduce this magic. 
 It simply looking for the desired memory region which stores some quantity and resets its value.   
 
-# Usage
-IN PROGRESS
-
 # Demo
-IN PROGRESS
+![](demo.gif)
+
