@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-struct rwMem {
+struct rwMemBlock {
     PVOID base;
     SIZE_T size;
 };

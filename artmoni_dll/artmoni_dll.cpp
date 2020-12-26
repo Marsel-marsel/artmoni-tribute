@@ -1,7 +1,7 @@
 #include "../common/artmoni.h"
 using namespace std;
 
-BOOL isPresent(PVOID address, vector<rwMem> rwmem) {
+BOOL isPresent(PVOID address, vector<rwMemBlock> rwmem) {
     for (int i = 0; i < rwmem.size(); i++) {
         PVOID startAddr = rwmem[i].base;
         PVOID endAddr = (PVOID)((PBYTE)startAddr + rwmem[i].size);
@@ -12,29 +12,28 @@ BOOL isPresent(PVOID address, vector<rwMem> rwmem) {
     }
     return FALSE;
 }
-extern "C" __declspec(dllexport) BOOL writeRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
+extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
     int* ptrNewValue = (int*)malloc(sizeof(int));
     if (ptrNewValue == NULL) {
         wprintf(TEXT("Malloc failed\n"));
         return FALSE;
     }
-
-    *ptrNewValue = newValue;
+    //*ptrNewValue = newValue;
     for (int i = 0; i < valuePointers->size(); i++) {
         SIZE_T bytesWritten = 0;
         PVOID targetAddress = (*valuePointers)[i];
-        WriteProcessMemory(pHandle, targetAddress, ptrNewValue, sizeof(int), &bytesWritten);
+        WriteProcessMemory(pHandle, targetAddress, &newValue, sizeof(int), &bytesWritten);
         if (bytesWritten != sizeof(int)) {
             wprintf(TEXT("Can't write integer at address %p\n"), targetAddress);
             return FALSE;
         }
     }
-    free(ptrNewValue);
+    //free(ptrNewValue);
     return TRUE;
 }
 
 
-extern "C" __declspec(dllexport) BOOL filterRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
+extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
     vector<PVOID>::iterator it = valuePointers->begin();
     for (; it != valuePointers->end(); ) {
         PVOID curAddr = (PVOID) * it;
@@ -60,7 +59,7 @@ extern "C" __declspec(dllexport) BOOL filterRWPointers(const HANDLE pHandle, int
     return TRUE;
 }
 
-extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<rwMem>* rwmemVector) {
+extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, vector<rwMemBlock>* rwmemVector) {
     PVOID pvAddress = NULL;
     MEMORY_BASIC_INFORMATION mbi;
     while (VirtualQueryEx(pHandle, pvAddress, &mbi, sizeof(mbi)) == sizeof(mbi)) {
@@ -68,15 +67,14 @@ extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<
             && mbi.State & MEM_COMMIT
             //&& mbi.Type & MEM_PRIVATE
             ) {
-            rwMem m;
-            m.base = mbi.BaseAddress;
-            m.size = mbi.RegionSize;
-            rwmemVector->push_back(m);  // from xtcrackme - push_back makes a copy of element, so we don't care that m is local var
-            //wprintf(TEXT("%p, size: %u kB\n"), pvAddress, mbi.RegionSize / 1024);
+            rwMemBlock newBlock;
+            newBlock.base = mbi.BaseAddress;
+            newBlock.size = mbi.RegionSize;
+            rwmemVector->push_back(newBlock);  // from xtcrackme - push_back makes a copy of element, so we don't care that m is local var
         }
         pvAddress = (PVOID)((PBYTE)pvAddress + mbi.RegionSize);
     }
-    wprintf(TEXT("Found %zu memory RW regions\n"), rwmemVector->size());
+    wprintf(TEXT("Found %zu memory RW blocks\n"), rwmemVector->size());
     if (rwmemVector->size() != 0) {
         return TRUE;
     }
@@ -85,8 +83,8 @@ extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<
     }
 }
 
-extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE pHandle, vector<rwMem>*rwmemVector, vector<PVOID>* result ) {
-    vector<rwMem> newVector;
+extern "C" __declspec(dllexport) BOOL scanRWblocksForUintValue(int value, const HANDLE pHandle, vector<rwMemBlock>*rwmemVector, vector<PVOID>* result ) {
+    vector<rwMemBlock> newVector;
 
     for (int i = 0; i < rwmemVector->size(); i++) {
         PVOID pAddr = (*rwmemVector)[i].base;
@@ -99,23 +97,21 @@ extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE 
         SIZE_T readBytes = NULL;
         ReadProcessMemory(pHandle, pAddr, buf, size, &readBytes);
         if (readBytes != size) {
-            //wprintf(TEXT("ReadProcessMemory error. Can't read memory block %p (size: %zu bytes)"), pAddr, size);
-            continue;
+            continue; // Can't read protected page
         }
         UINT offset = 0;
-        PVOID startAddr = buf;
-        PVOID endAddr = (PVOID) ((PBYTE)buf + size);
-        PVOID curAddr = (PVOID)((PBYTE)startAddr + offset);
-        while (curAddr < endAddr) {
+        PVOID rwBlockStart = buf;
+        PVOID rwBlockEnd = (PVOID) ((PBYTE)buf + size);
+        PVOID curAddr = (PVOID)((PBYTE)rwBlockStart + offset);
+        while (curAddr < rwBlockEnd) {
             int curValue = *(int*)curAddr;
             if (curValue == value) {
                 PVOID addrInProcessLayout = (PVOID)((PBYTE)pAddr + offset);
                 result->push_back(addrInProcessLayout);
             }
             offset += sizeof(int);
-            curAddr = (PVOID)((PBYTE)startAddr + offset);
+            curAddr = (PVOID)((PBYTE)rwBlockStart + offset);
         }
-        //scanForIntValue(value, buf, size, result);
         free(buf);
     }
     return TRUE;

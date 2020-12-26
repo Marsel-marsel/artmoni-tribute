@@ -1,10 +1,10 @@
 #include "../common/artmoni.h"
 #include <iostream>
 using namespace std;
-extern "C" __declspec(dllexport) BOOL getRWregions(const HANDLE pHandle, vector<rwMem>*rwmemVector);
-extern "C" __declspec(dllexport) BOOL scanRWmemForValue(int value, const HANDLE pHandle, vector<rwMem>*rwmemVector, vector<PVOID>*result);
-extern "C" __declspec(dllexport) BOOL filterRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
-extern "C" __declspec(dllexport) BOOL writeRWPointers(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
+extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, vector<rwMemBlock>*rwmemVector);
+extern "C" __declspec(dllexport) BOOL scanRWblocksForUintValue(int value, const HANDLE pHandle, vector<rwMemBlock>*rwmemVector, vector<PVOID>*result);
+extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
+extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
 
 
 int _tmain(int argc, TCHAR* argv[]) {
@@ -27,18 +27,18 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 	
-	vector<rwMem> rwmem;
-	if (!getRWregions(hProcess, &rwmem)) {
+	vector<rwMemBlock> rwmem;
+	if (!getRWblocksOfProcess(hProcess, &rwmem)) {
 		CloseHandle(hProcess);
 		return 1;
 	}
 
 	vector<PVOID> valuePointers;
-	wprintf(TEXT("Insert target value:\n"));
+	wprintf(TEXT("Insert target value: "));
 	int targetValue;
 	cin >> targetValue;
 	
-	scanRWmemForValue(targetValue, hProcess, &rwmem, &valuePointers);
+	scanRWblocksForUintValue(targetValue, hProcess, &rwmem, &valuePointers);
 	if (valuePointers.size() == 0) {
 		wprintf(TEXT("Can't find the value of %d in memory layout of process %d\n"), targetValue, dwProcessId);
 		CloseHandle(hProcess);
@@ -49,25 +49,32 @@ int _tmain(int argc, TCHAR* argv[]) {
 	int newValue;
 	cin.width(21);
 	while(TRUE){
-		wprintf(TEXT("Insert new value (enter to escape): \n"));
-		char userInput[21] = { 0 }; //cin >> newValue;
+		wprintf(TEXT("Make changes in the process and insert new value (n to next step): "));
+		char userInput[21] = { 0 };
 		cin >> userInput;
 		try {
 			newValue = std::stoi(userInput);
-			filterRWPointers(hProcess, newValue, &valuePointers);
+			filterRWpointersByUint(hProcess, newValue, &valuePointers);
 			wprintf(TEXT("Found %zu pointers to the value %d\n"), valuePointers.size(), newValue);
 		}
 		catch (std::exception) {
 			break;
 		}
 	}
-	wprintf(TEXT("Insert rewrite value : \n"));
+
+	wprintf(TEXT("Rewrite uint pointers "));
+	for (int i = 0; i < valuePointers.size(); i++) {
+		wprintf(TEXT("0x%p "), valuePointers[i]);
+	}
+	wprintf(TEXT("with value: "));
+
 	cin >> newValue;
-	if (!writeRWPointers(hProcess, newValue, &valuePointers)) {
+	if (!writeRWPointerUintValue(hProcess, newValue, &valuePointers)) {
 		wprintf(TEXT("Can't rewrite memory\n"));
 		CloseHandle(hProcess);
 		return 1;
 	}
+	wprintf(TEXT("Done. Exit"));
 	CloseHandle(hProcess);
 	return 0;
 }
