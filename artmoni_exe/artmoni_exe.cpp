@@ -4,7 +4,7 @@ using namespace std;
 extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, memBlocks *rwmemVector);
 extern "C" __declspec(dllexport) BOOL scanMemBlocksForValue(lookupType value, const HANDLE pHandle, memBlocks *rwmemVector, vector<lookupType*>*result);
 extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, lookupType newValue, vector<lookupType*>*valuePointers);
-extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, lookupType newValue, vector<lookupType*>*valuePointers);
+extern "C" __declspec(dllexport) BOOL writeRWPointersValue(const HANDLE pHandle, lookupType newValue, vector<lookupType*>*valuePointers);
 
 
 int _tmain(int argc, TCHAR* argv[]) {
@@ -69,7 +69,7 @@ int _tmain(int argc, TCHAR* argv[]) {
 	wprintf(TEXT("with value: "));
 
 	cin >> newValue;
-	if (!writeRWPointerUintValue(hProcess, newValue, &valuePointers)) {
+	if (!writeRWPointersValue(hProcess, newValue, &valuePointers)) {
 		wprintf(TEXT("Can't rewrite memory\n"));
 		CloseHandle(hProcess);
 		return 1;

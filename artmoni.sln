@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "artmoni_exe", "artmoni_exe\artmoni_exe.vcxproj", "{69187784-AADC-4A26-894A-913B2F81C562}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D19DA96C-4997-4AC2-B492-E317C744BC80} = {D19DA96C-4997-4AC2-B492-E317C744BC80}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "artmoni_dll", "artmoni_dll\artmoni_dll.vcxproj", "{D19DA96C-4997-4AC2-B492-E317C744BC80}"
 EndProject

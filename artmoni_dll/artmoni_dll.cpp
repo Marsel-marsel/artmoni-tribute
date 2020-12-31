@@ -13,7 +13,7 @@ using namespace std;
     return FALSE;
 }*/
 
-extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
+extern "C" __declspec(dllexport) BOOL writeRWPointersValue(const HANDLE pHandle, lookupType newValue, vector<PVOID>*valuePointers) {
     int* ptrNewValue = (int*)malloc(sizeof(int));
     if (ptrNewValue == NULL) {
         wprintf(TEXT("Malloc failed\n"));
@@ -32,7 +32,7 @@ extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHand
 }
 
 
-extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
+extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, lookupType newValue, vector<PVOID>*valuePointers) {
     vector<PVOID>::iterator it = valuePointers->begin();
     for (; it != valuePointers->end(); ) {
         PVOID curAddr = (PVOID) * it;
