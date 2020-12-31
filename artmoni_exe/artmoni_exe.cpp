@@ -1,10 +1,10 @@
 #include "../common/artmoni.h"
 #include <iostream>
 using namespace std;
-extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, vector<rwMemBlock>*rwmemVector);
-extern "C" __declspec(dllexport) BOOL scanRWblocksForUintValue(int value, const HANDLE pHandle, vector<rwMemBlock>*rwmemVector, vector<PVOID>*result);
-extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
-extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers);
+extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, memBlocks *rwmemVector);
+extern "C" __declspec(dllexport) BOOL scanMemBlocksForValue(lookupType value, const HANDLE pHandle, memBlocks *rwmemVector, vector<lookupType*>*result);
+extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandle, lookupType newValue, vector<lookupType*>*valuePointers);
+extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, lookupType newValue, vector<lookupType*>*valuePointers);
 
 
 int _tmain(int argc, TCHAR* argv[]) {
@@ -27,18 +27,18 @@ int _tmain(int argc, TCHAR* argv[]) {
 		return 1;
 	}
 	
-	vector<rwMemBlock> rwmem;
-	if (!getRWblocksOfProcess(hProcess, &rwmem)) {
+	memBlocks procMemBlocks;
+	if (!getRWblocksOfProcess(hProcess, &procMemBlocks)) {
 		CloseHandle(hProcess);
 		return 1;
 	}
 
-	vector<PVOID> valuePointers;
+	vector<lookupType*> valuePointers;
 	wprintf(TEXT("Insert target value: "));
-	int targetValue;
+	lookupType targetValue;
 	cin >> targetValue;
 	
-	scanRWblocksForUintValue(targetValue, hProcess, &rwmem, &valuePointers);
+	scanMemBlocksForValue(targetValue, hProcess, &procMemBlocks, &valuePointers);
 	if (valuePointers.size() == 0) {
 		wprintf(TEXT("Can't find the value of %d in memory layout of process %d\n"), targetValue, dwProcessId);
 		CloseHandle(hProcess);

@@ -1,7 +1,7 @@
 #include "../common/artmoni.h"
 using namespace std;
 
-BOOL isPresent(PVOID address, vector<rwMemBlock> rwmem) {
+/*BOOL isPresent(PVOID address, vector<rwMemBlock> rwmem) {
     for (int i = 0; i < rwmem.size(); i++) {
         PVOID startAddr = rwmem[i].base;
         PVOID endAddr = (PVOID)((PBYTE)startAddr + rwmem[i].size);
@@ -11,14 +11,14 @@ BOOL isPresent(PVOID address, vector<rwMemBlock> rwmem) {
         }
     }
     return FALSE;
-}
+}*/
+
 extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHandle, int newValue, vector<PVOID>*valuePointers) {
     int* ptrNewValue = (int*)malloc(sizeof(int));
     if (ptrNewValue == NULL) {
         wprintf(TEXT("Malloc failed\n"));
         return FALSE;
     }
-    //*ptrNewValue = newValue;
     for (int i = 0; i < valuePointers->size(); i++) {
         SIZE_T bytesWritten = 0;
         PVOID targetAddress = (*valuePointers)[i];
@@ -28,7 +28,6 @@ extern "C" __declspec(dllexport) BOOL writeRWPointerUintValue(const HANDLE pHand
             return FALSE;
         }
     }
-    //free(ptrNewValue);
     return TRUE;
 }
 
@@ -59,23 +58,21 @@ extern "C" __declspec(dllexport) BOOL filterRWpointersByUint(const HANDLE pHandl
     return TRUE;
 }
 
-extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, vector<rwMemBlock>* rwmemVector) {
+extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle, memBlocks* procMemBlocks) {
     PVOID pvAddress = NULL;
     MEMORY_BASIC_INFORMATION mbi;
     while (VirtualQueryEx(pHandle, pvAddress, &mbi, sizeof(mbi)) == sizeof(mbi)) {
-        if (mbi.AllocationProtect & PAGE_READWRITE
-            && mbi.State & MEM_COMMIT
-            //&& mbi.Type & MEM_PRIVATE
+        if (mbi.AllocationProtect & PAGE_READWRITE &&
+            mbi.State & MEM_COMMIT
+            // TODO not protected
             ) {
-            rwMemBlock newBlock;
-            newBlock.base = mbi.BaseAddress;
-            newBlock.size = mbi.RegionSize;
-            rwmemVector->push_back(newBlock);  // from xtcrackme - push_back makes a copy of element, so we don't care that m is local var
+            tuple<PVOID, SIZE_T> newBlock = { mbi.BaseAddress, mbi.RegionSize };
+            procMemBlocks->push_back(newBlock); 
         }
         pvAddress = (PVOID)((PBYTE)pvAddress + mbi.RegionSize);
     }
-    wprintf(TEXT("Found %zu memory RW blocks\n"), rwmemVector->size());
-    if (rwmemVector->size() != 0) {
+    wprintf(TEXT("Found %zu memory RW blocks\n"), procMemBlocks->size());
+    if (procMemBlocks->size() != 0) {
         return TRUE;
     }
     else {
@@ -83,12 +80,10 @@ extern "C" __declspec(dllexport) BOOL getRWblocksOfProcess(const HANDLE pHandle,
     }
 }
 
-extern "C" __declspec(dllexport) BOOL scanRWblocksForUintValue(int value, const HANDLE pHandle, vector<rwMemBlock>*rwmemVector, vector<PVOID>* result ) {
-    vector<rwMemBlock> newVector;
-
-    for (int i = 0; i < rwmemVector->size(); i++) {
-        PVOID pAddr = (*rwmemVector)[i].base;
-        SIZE_T size = (*rwmemVector)[i].size;
+extern "C" __declspec(dllexport) BOOL scanMemBlocksForValue(lookupType lookupValue, const HANDLE pHandle, memBlocks* memBlocks, vector<lookupType*>* result ) {
+    for (int i = 0; i < memBlocks->size(); i++) {
+        PVOID pAddr = get<0>((*memBlocks)[i]);
+        SIZE_T size = get<1>((*memBlocks)[i]);
         PVOID buf = malloc(size);
         if (buf == NULL) {
             wprintf(TEXT("Malloc failed %p (size: %zu bytes)\n"), pAddr, size);
@@ -104,12 +99,12 @@ extern "C" __declspec(dllexport) BOOL scanRWblocksForUintValue(int value, const 
         PVOID rwBlockEnd = (PVOID) ((PBYTE)buf + size);
         PVOID curAddr = (PVOID)((PBYTE)rwBlockStart + offset);
         while (curAddr < rwBlockEnd) {
-            int curValue = *(int*)curAddr;
-            if (curValue == value) {
-                PVOID addrInProcessLayout = (PVOID)((PBYTE)pAddr + offset);
+            lookupType curValue = *(lookupType*)curAddr;
+            if (curValue == lookupValue) {
+                lookupType* addrInProcessLayout = (lookupType*)((PBYTE)pAddr + offset);
                 result->push_back(addrInProcessLayout);
             }
-            offset += sizeof(int);
+            offset += sizeof(lookupType);
             curAddr = (PVOID)((PBYTE)rwBlockStart + offset);
         }
         free(buf);

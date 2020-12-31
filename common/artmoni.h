@@ -5,8 +5,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <tuple>
 
-struct rwMemBlock {
-    PVOID base;
-    SIZE_T size;
-};
+typedef __int32 lookupType;
+typedef std::vector<std::tuple<PVOID, SIZE_T>> memBlocks;
