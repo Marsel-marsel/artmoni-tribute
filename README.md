@@ -2,7 +2,7 @@
 Scan process memory and rewrite some memory regions
 
 # Motivation
-C++ and WINAPI practice
+C++ and WINAPI practice. Special thanks to [Jeffty Ritcher "Windows via C/C++"](https://www.amazon.com/Windows-via-softcover-Developer-Reference/dp/0735663777)
 
 # History
 When I was a kid I used to play computer games a lot and a program called [artmoney](http://www.artmoney.ru/) was very helpful.
